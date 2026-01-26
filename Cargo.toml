@@ -1,0 +1,12 @@
+[package]
+name = "krypton"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4"
+hex = "0.4.3"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+blake3 = "1.8.2"
+log = "0.4.29"
