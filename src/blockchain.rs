@@ -11,10 +11,6 @@ pub struct Blockchain {
 
 impl Blockchain {
     pub fn new() -> Self {
-        // dbg!("Im in Blockchain");
-        // let emission = reward_tx(miner);
-        // let mut genesis = Block::genesis(vec![], 20);
-        // mine_block(&mut genesis);
         Self {
             chain: vec![],
             current_difficulty: 1
