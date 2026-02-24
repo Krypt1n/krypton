@@ -10,3 +10,4 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 blake3 = "1.8.2"
 log = "0.4.29"
+anyhow = "1.0.102"

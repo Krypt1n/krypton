@@ -18,20 +18,26 @@ impl Blockchain {
     }
 
     pub fn append(&mut self, block: Block, state: &mut State) -> Result<(), BlockchainError> {
+        // Проводим валидацию блока, проверяя, не является ли он genesis
         if self.chain.len() == 0 {
             validate_genesis_block(&block).map_err(|e| BlockchainError::InvalidBlock(e))?;
         } else {
             validate_block(&block, self.last_block()).map_err(|e| BlockchainError::InvalidBlock(e))?;
         }
         
-        // validate_block(&block, self.last_block()).map_err(|e| BlockchainError::InvalidBlock(e))?;
+        // Заносим данные блока в State
         state.apply_block(&block).map_err(|e| BlockchainError::InvalidState(e))?;
-        self.chain.push(block.clone());
+
+        // Заносим блок в цепочку
+        self.chain.push(block);
+
+        // Возможно меняем сложность
         self.maybe_adjust_difficulty();
         Ok(())
     }
 
     fn maybe_adjust_difficulty(&mut self) {
+        // Проверяем время каждый n блоков
         let height = self.chain.len();
         if height % DIFFICULTY_ADJUST_INTERVAL == 0 {
             self.adjust_difficulty();
@@ -45,7 +51,10 @@ impl Blockchain {
         let first = &self.chain[start];
         let last = &self.chain[end];
 
+        // Текущее время формирования n блоков
         let actual_time = last.payload.timestamp - first.payload.timestamp;
+
+        // Время, приблизительно за которое должны формироваться блокчи
         let expected_time = DIFFICULTY_ADJUST_INTERVAL as i64 * TARGET_BLOCK_TIME;
 
         if actual_time < expected_time / 2 {

@@ -1,11 +1,11 @@
 #[derive(Debug)]
 pub enum NodeError {
     InvalidBlock(BlockError),
-    InvalidGenesis(BlockError),
     InvalidBlockchain(BlockchainError),
     InvalidTransaction(TxPoolError),
-    InvalidPoW(String),
-    DataError(String)
+    BlockMissing,
+    MiningTimeout,
+    TransactionMissing
 }
 
 #[derive(Debug)]

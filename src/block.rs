@@ -9,18 +9,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(b_h: BlockHeader, txs: Vec<Transaction>) -> Result<Self, BlockError> {
-        Ok(Self {
-            payload: b_h,
-            transactions: txs
-        })
-    }
-
-    pub fn genesis(txs: Vec<Transaction>, difficulty: u32) -> Self {
-        // dbg!("Genesis: not blockheader");
-        let b_h = BlockHeader::new_for_genesis(&txs, difficulty);
-        // dbg!("Genesis: blockheader success");
-
+    pub fn new(b_h: BlockHeader, txs: Vec<Transaction>) -> Self {
         Self {
             payload: b_h,
             transactions: txs
@@ -59,28 +48,13 @@ pub struct BlockHeader {
 }
 
 impl BlockHeader {
-    pub fn new(prev_hash: [u8; OUT_LEN], block_height: &u64, txs: &Vec<Transaction>, difficulty: u32) -> Result<Self, BlockError> {
+    pub fn new(prev_hash: [u8; OUT_LEN], block_height: &u64, txs: &Vec<Transaction>, difficulty: u32) -> Self {
         let merkle_root= merkle_root(txs.iter().map(|tx| tx.hash()).collect());
         
-        Ok(Self {
+        Self {
             height: block_height+1,
             timestamp: Utc::now().timestamp(),
             prev_hash: prev_hash,
-            nonce: 0,
-            merkle_root,
-            difficulty
-        })
-    }
-
-    pub fn new_for_genesis(txs: &Vec<Transaction>, difficulty: u32) -> Self {
-        // dbg!("Block: new for genesis. merkle is not");
-        let merkle_root= merkle_root(txs.iter().map(|tx| tx.hash()).collect());
-        // dbg!("Block: new for genesis. merkle success");
-
-        Self {
-            height: 0,
-            timestamp: Utc::now().timestamp(),
-            prev_hash: [0u8; OUT_LEN],
             nonce: 0,
             merkle_root,
             difficulty
@@ -100,38 +74,6 @@ impl BlockHeader {
     }
 }
 
-pub fn validate_genesis_block(block: &Block) -> Result<(), BlockError> {
-    validate_genesis_block_header(&block)?;
-    validate_block_transactions(&block)?;
-    validate_block_pow(&block)?;
-    Ok(())
-}
-
-fn validate_genesis_block_header(block: &Block) -> Result<(), BlockError> {
-    let check_height = block.payload.height == 0;
-    let check_timestamp = block.payload.timestamp != 0;
-    let check_prev_hash = block.payload.prev_hash == [0u8; OUT_LEN];
-    let check_merkle_root = block.payload.merkle_root == merkle_root(block.transactions.iter().map(|tx| tx.hash()).collect());
-
-    if !check_height {
-        return Err(BlockError::InvalidHeight); 
-    }
-
-    if !check_timestamp {
-        return Err(BlockError::InvalidTimestamp);
-    }
-
-    if !check_prev_hash {
-        return Err(BlockError::InvalidPrevHash);
-    }
-
-    if !check_merkle_root {
-        return Err(BlockError::InvalidMerkleRoot)
-    }
-
-    Ok(()) 
-}
-
 pub fn validate_block(block: &Block, prev_block: &Block) -> Result<(), BlockError> {
     validate_block_header(&block, &prev_block)?;
     validate_block_transactions(&block)?;
@@ -139,16 +81,6 @@ pub fn validate_block(block: &Block, prev_block: &Block) -> Result<(), BlockErro
 
     Ok(()) 
 }
-
-fn validate_block_pow(block: &Block) -> Result<(), BlockError> {
-    let hash = block.hash();
-
-    if !hash_meets_difficulty(&hash, &block.payload.difficulty) {
-        return Err(BlockError::InvalidPow)
-    }
-
-    Ok(())
-} 
 
 fn validate_block_header(block: &Block, prev_block: &Block) -> Result<(), BlockError> {
     let check_height = prev_block.payload.height + 1 == block.payload.height;
@@ -174,6 +106,16 @@ fn validate_block_header(block: &Block, prev_block: &Block) -> Result<(), BlockE
 
     Ok(())
 }
+
+fn validate_block_pow(block: &Block) -> Result<(), BlockError> {
+    let hash = block.hash();
+
+    if !hash_meets_difficulty(&hash, &block.payload.difficulty) {
+        return Err(BlockError::InvalidPow)
+    }
+
+    Ok(())
+} 
 
 fn validate_block_transactions(block: &Block) -> Result<(), BlockError> {
     for tx in block.transactions.iter() {

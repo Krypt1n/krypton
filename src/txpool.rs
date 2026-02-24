@@ -7,7 +7,6 @@ pub struct TxPool {
 
 impl TxPool {
     pub fn new() -> Self {
-        // dbg!("Im in TxPool");
         Self {
             txs: vec![]
         }

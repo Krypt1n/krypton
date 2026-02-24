@@ -1,3 +1,5 @@
+use std::any;
+
 use crate::{
     block::{Block, BlockHeader}, 
     blockchain::Blockchain, 
@@ -9,6 +11,7 @@ use crate::{
     txpool::TxPool
 };
 use log::{error, info, warn};
+use anyhow::Result;
 
 #[derive(Debug)]
 enum NodeState {
@@ -31,72 +34,43 @@ pub struct Node {
 
 impl Node {
     pub fn new(config: NodeConfig) -> Result<Self, NodeError> {
-        let mut chain = Blockchain::new();
-        let mut state = State::new();
-        let mut genesis = Block::genesis(vec![], chain.current_difficulty);
-
-        match mine_block(&mut genesis) {
-            SUCCESS_MINING_OPCODE => match chain.append(genesis, &mut state) {
-                Ok(_) => {
-                    dbg!("Node: mining genesis success");
-                    Ok(Self { 
-                        nodestate: NodeState::Idle, 
-                        blockchain: chain, 
-                        state, 
-                        txpool: TxPool::new() ,
-                        current_block: None,
-                        selected_txs: None,
-                        config
-                    })
-                },
-                Err(e) => {
-                    Err(NodeError::InvalidBlockchain(e))
-                }
-            },
-            FAIL_MINING_OPCODE => return Err(NodeError::InvalidPoW("genesis didn't get together".to_string())),
-            _ => return Err(NodeError::InvalidPoW("genesis didn't get together".to_string()))
-        }
+        Ok(Self {
+            nodestate: NodeState::Idle,
+            blockchain: Blockchain::new(),
+            state: State::new(),
+            txpool: TxPool::new(),
+            current_block: None,
+            selected_txs: None,
+            config
+        })
     }
 
-    fn preparing_block(&mut self) -> Result<(), NodeError> {
-        let txs = self.txpool.select_txs(self.config.max_txs_per_block);
-        self.selected_txs = Some(txs.clone());
+    fn preparing_block(&mut self) {
+        let txs = self.txpool.select_txs(self.config.max_txs_per_block); // Забираем транзакции из txpool
+        self.selected_txs = Some(txs.clone()); // Заносим их в поле структуры, заранее клонируя
 
-        // dbg!("prepaparing");
+        let last_block = self.blockchain.last_block(); // Получаем последний блок
 
-        let last_block = self.blockchain.last_block();
-
-        let b_h = match BlockHeader::new(
+        let b_h = BlockHeader::new( // Формируем BlockHeader
             last_block.hash(),
             &last_block.payload.height, 
             &txs,
             self.blockchain.current_difficulty
-        ) {
-            Ok(blockheader) => blockheader,
-            Err(e) => return Err(NodeError::InvalidBlock(e))
-        };
-        let block = match Block::new(b_h, txs) {
-            Ok(block) => block,
-            Err(e) => return Err(NodeError::InvalidBlock(e))
-        };
+        );
 
-        info!("block is created");
+        let block = Block::new(b_h, txs);
 
         self.current_block = Some(block);
-
-        Ok(())
     }
 
     fn mining(&mut self) -> Result<(), NodeError> {
-        dbg!("mining");
-        let mut block = match self.current_block.take() {
+        let mut block = match self.current_block.take() { // Забираем блок из структуры
             Some(block) => block,
-            None => return Err(NodeError::InvalidPoW("block is missing".to_string()))  
+            None => return Err(NodeError::BlockMissing)  
         };
 
         let mut status = FAIL_MINING_OPCODE;
-        for _ in 0..self.config.mining_iteration_limit {
-            dbg!("1");
+        for _ in 0..self.config.mining_iteration_limit { // Майнинг
             status = mine_block(&mut block);
             if status == SUCCESS_MINING_OPCODE {
                 self.current_block = Some(block);
@@ -105,11 +79,9 @@ impl Node {
         }
                     
         if status == FAIL_MINING_OPCODE {
-            warn!("The number of possible iterations for mining a block has been exceeded.");
-            return Err(NodeError::InvalidPoW("Exceeding the number of mining iterations".to_string())) 
+            return Err(NodeError::MiningTimeout) 
         }
 
-        info!("block is mined");
         self.nodestate = NodeState::ApplyingBlock;
 
         Ok(())
@@ -118,7 +90,7 @@ impl Node {
     fn applying_block(&mut self) -> Result<(), NodeError> {
         let txs = match self.selected_txs.take() {
             Some(txs) => txs,
-            None => return Err(NodeError::DataError("transactions is missing".to_string())) 
+            None => return Err(NodeError::TransactionMissing) 
         };
 
         let block = match self.current_block.take() {
@@ -133,7 +105,6 @@ impl Node {
     }
     
     pub fn run(&mut self) {
-        dbg!("Node is running");
         loop {
             match self.nodestate {
                 NodeState::Idle => {
@@ -141,14 +112,12 @@ impl Node {
                         self.nodestate = NodeState::PreparingBlock;
                         continue;
                     }
-                    warn!("txpool is empty");
                 },
                 NodeState::PreparingBlock => {
                     match self.preparing_block(){
                         Ok(_) => self.nodestate = NodeState::Mining,
                         Err(e) => {
                             self.nodestate = NodeState::PreparingBlock;
-                            warn!("{e:?}");
                             continue;
                         }
                     } 
@@ -158,7 +127,6 @@ impl Node {
                         Ok(_) => self.nodestate = NodeState::ApplyingBlock,
                         Err(e) => {
                             self.nodestate = NodeState::PreparingBlock;
-                            warn!("{e:?}");
                             continue;
                         }
                     }
@@ -171,7 +139,6 @@ impl Node {
                         },
                         Err(e) => {
                             self.nodestate = NodeState::Idle;
-                            error!("{e:?}");
                             continue;
                         }
                     }

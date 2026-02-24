@@ -8,48 +8,44 @@ pub struct State {
 
 impl State {
     pub fn new() -> Self {
-        // dbg!("Im in State");
         let balances: HashMap<Address, u64> = HashMap::new();
         Self {
             balances
         }
     }
 
-    // Later...(currently used onle for tests)
-    pub fn from(balances: HashMap<Address, u64>) -> Self {
-        Self {
-            balances
-        }
-    }
-
     pub fn apply_block(&mut self, block: &Block) -> Result<(), StateError> {
+        // Работаем с клоном state, дабы обеспечить атомарность сети
         let mut state = self.clone();
 
         for tx in block.transactions.iter() {
+            // Пробуем добавить транзакцию в state
             state.apply_transaction(tx)?;
         }
 
+        // Синхронизируем состояния
         self.balances = state.balances;
 
         Ok(())
     }
 
     pub fn apply_transaction(&mut self, tx: &Transaction) -> Result<(), StateError> {
-
         match &tx.kind {
             TransactionKind::User(kind) => {
+                // Проверка баланса для решения проблемы двойного расходования
                 let check_balance = self.balance_of(&kind.from) >= kind.amount;
-
                 if !check_balance {
                     return Err(StateError::InvalidBalance);
                 }
 
+                // Изменяем балансы согласно адресам
                 self.balances.entry(kind.from.clone()).and_modify(|v| *v -= kind.amount);
                 self.balances.entry(kind.to.clone()).and_modify(|v| *v += kind.amount).or_insert(kind.amount);
 
                 Ok(())
             },
             TransactionKind::Reward(kind) => {
+                // Для reward транзакций проверка не нужна
                 self.balances.entry(kind.to.clone()).and_modify(|v| *v += kind.amount).or_insert(kind.amount);
                 Ok(())
             }

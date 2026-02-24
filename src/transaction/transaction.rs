@@ -143,22 +143,17 @@ pub fn hash_transactions(txs: &Vec<Transaction>) -> [u8; OUT_LEN] {
 }
 
 pub fn merkle_root(txs: Vec<Hash>) -> [u8; OUT_LEN] {
-    // FOR TEST: EMPTY TXS
     if txs.len() == 0 {
         return [0u8; OUT_LEN];
     }
 
-    // dbg!("Transaction: merkle root: begin – 1");
     if txs.len() == 1 {
         return txs[0].as_bytes().clone();
     }
 
     let mut next = Vec::new();
 
-    // dbg!("Transaction: merkle root: begin – 2");
-
     for pair in txs.chunks(2) {
-        // dbg!("Transaction: merkle root: begin – 3");
         let left = pair[0];
         let right = if pair.len() == 3 {pair[1]} else {pair[0]};
 
@@ -170,14 +165,4 @@ pub fn merkle_root(txs: Vec<Hash>) -> [u8; OUT_LEN] {
     }
 
     merkle_root(next)
-}
-
-pub fn reward_tx(miner: &Address) -> Transaction {
-    Transaction::new(
-         TransactionKind::Reward(
-            RewardTransaction { to: miner.clone(), amount: REWARD },
-         ),
-         None,
-         None
-    )
 }

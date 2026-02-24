@@ -1,4 +1,4 @@
-pub const TRANSACTION_SELECT_SIZE: usize = 1;
+pub const TRANSACTION_SELECT_SIZE: usize = 3;
 pub const MINING_ITERATION_COUNT: u64 = 100_000;
 
 pub const FAIL_MINING_OPCODE: u8 = 0;

@@ -21,3 +21,14 @@ impl RewardTransaction {
         bytes
     }
 }
+
+pub fn reward_tx(miner: &Address) -> Transaction {
+    Transaction::new(
+         TransactionKind::Reward(
+            RewardTransaction { to: miner.clone(), amount: REWARD },
+         ),
+         None,
+         None
+    )
+}
+
