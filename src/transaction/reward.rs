@@ -1,5 +1,7 @@
 use crate::address::Address;
+use crate::transaction::Transaction::{Transaction, TransactionKind};
 
+pub const REWARD: u64 = 50;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RewardTransaction {
@@ -27,7 +29,6 @@ pub fn reward_tx(miner: &Address) -> Transaction {
          TransactionKind::Reward(
             RewardTransaction { to: miner.clone(), amount: REWARD },
          ),
-         None,
          None
     )
 }

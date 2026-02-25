@@ -1,6 +1,6 @@
 use blake3::{Hasher, OUT_LEN};
 use chrono::Utc;
-use crate::{consensus::pow::hash_meets_difficulty, errors::BlockError, transaction::transaction::*};
+use crate::{consensus::pow::hash_meets_difficulty, errors::BlockError, transaction::Transaction::*};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
@@ -13,6 +13,16 @@ impl Block {
         Self {
             payload: b_h,
             transactions: txs
+        }
+    }
+
+    // Переписать после теста
+    pub fn genesis() -> Self {
+        let payload = BlockHeader::genesis();
+        let transactions =  vec![];
+
+        Self {
+            payload, transactions
         }
     }
 
@@ -58,6 +68,17 @@ impl BlockHeader {
             nonce: 0,
             merkle_root,
             difficulty
+        }
+    }
+
+    fn genesis() -> Self {
+        Self {
+            height: 0,
+            timestamp: Utc::now().timestamp(),
+            prev_hash: [0u8; OUT_LEN],
+            nonce: 0,
+            merkle_root: [0u8; 32],
+            difficulty: 1
         }
     }
 

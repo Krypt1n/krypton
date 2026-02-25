@@ -10,8 +10,6 @@ use crate::{
 use crate::transaction::reward::*;
 use crate::transaction::user::*;
 
-pub const REWARD: u64 = 50;
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Transaction {
     pub kind: TransactionKind,
@@ -20,13 +18,15 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(kind: TransactionKind, public_key: Option<VerifyingKey>, private_key: Option<SigningKey>) -> Self {
+    pub fn new(kind: TransactionKind, keypair: Option<&(SigningKey, VerifyingKey)>) -> Self {
         match kind {
             TransactionKind::User(_) => {
-                let signature = private_key.unwrap().sign(&kind.to_bytes()); // UNWRAP!
+                let mut keypair = keypair.unwrap().clone();
+                let signature = keypair.0.sign(&kind.to_bytes()); // UNWRAP!
 
-                Self { kind, 
-                    public_key: Some(public_key.unwrap().to_bytes()), // UNWRAP!
+                Self { 
+                    kind, 
+                    public_key: Some(keypair.1.to_bytes()), // UNWRAP!
                     signature: Some(signature.to_bytes()) 
                 }
             },

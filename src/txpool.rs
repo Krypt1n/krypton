@@ -1,4 +1,4 @@
-use crate::{errors::TxPoolError, transaction::transaction::{Transaction, validate_transaction}};
+use crate::{errors::TxPoolError, transaction::Transaction::{Transaction, validate_transaction}};
 
 #[derive(Debug)]
 pub struct TxPool {

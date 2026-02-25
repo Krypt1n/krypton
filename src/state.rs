@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{address::Address, errors::StateError, block::*, transaction::transaction::*};
+use crate::{address::Address, errors::StateError, block::*, transaction::Transaction::*};
 
 #[derive(Debug, Clone)]
 pub struct State {

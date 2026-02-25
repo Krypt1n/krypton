@@ -1,5 +1,3 @@
-use std::any;
-
 use crate::{
     block::{Block, BlockHeader}, 
     blockchain::Blockchain, 
@@ -7,10 +5,9 @@ use crate::{
     errors::NodeError, 
     node::config::{FAIL_MINING_OPCODE, NodeConfig, SUCCESS_MINING_OPCODE}, 
     state::State, 
-    transaction::transaction::Transaction, 
+    transaction::Transaction::Transaction, 
     txpool::TxPool
 };
-use log::{error, info, warn};
 use anyhow::Result;
 
 #[derive(Debug)]
@@ -34,6 +31,7 @@ pub struct Node {
 
 impl Node {
     pub fn new(config: NodeConfig) -> Result<Self, NodeError> {
+        // Далее здесь будет выгрузка цепи и state
         Ok(Self {
             nodestate: NodeState::Idle,
             blockchain: Blockchain::new(),
@@ -95,7 +93,7 @@ impl Node {
 
         let block = match self.current_block.take() {
             Some(block) => block,
-            None => return Err(NodeError::DataError("block is missing".to_string())) 
+            None => return Err(NodeError::BlockMissing) 
         };
 
         match self.blockchain.append(block, &mut self.state) {
@@ -105,39 +103,43 @@ impl Node {
     }
     
     pub fn run(&mut self) {
+        println!("Node start");
         loop {
             match self.nodestate {
                 NodeState::Idle => {
+                    println!("NodeState - Idle");
                     if self.txpool.len() >= self.config.max_txs_per_block {
+                        println!("TxPool >= max_txs_per_block");
                         self.nodestate = NodeState::PreparingBlock;
                         continue;
                     }
                 },
                 NodeState::PreparingBlock => {
-                    match self.preparing_block(){
-                        Ok(_) => self.nodestate = NodeState::Mining,
-                        Err(e) => {
-                            self.nodestate = NodeState::PreparingBlock;
-                            continue;
-                        }
-                    } 
+                    println!("NodeState - PreparingBlock");
+                    self.preparing_block();
+                    self.nodestate = NodeState::Mining;
                 },
                 NodeState::Mining => {
+                    println!("NodeState - Mining");                    
                     match self.mining() {
                         Ok(_) => self.nodestate = NodeState::ApplyingBlock,
                         Err(e) => {
+                            eprintln!("{e:?}");
                             self.nodestate = NodeState::PreparingBlock;
                             continue;
                         }
                     }
                 },
                 NodeState::ApplyingBlock => {
+                    println!("NodeState - ApplyingBlock");  
                     match self.applying_block() {
                         Ok(_) => {
+                            println!("Success applying block!");
                             self.nodestate = NodeState::Idle;
                             break; // for test
                         },
                         Err(e) => {
+                            eprintln!("{e:?}");
                             self.nodestate = NodeState::Idle;
                             continue;
                         }

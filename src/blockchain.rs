@@ -11,17 +11,16 @@ pub struct Blockchain {
 
 impl Blockchain {
     pub fn new() -> Self {
+        let genesis = Block::genesis();
         Self {
-            chain: vec![],
+            chain: vec![genesis],
             current_difficulty: 1
         }
     }
 
     pub fn append(&mut self, block: Block, state: &mut State) -> Result<(), BlockchainError> {
         // Проводим валидацию блока, проверяя, не является ли он genesis
-        if self.chain.len() == 0 {
-            validate_genesis_block(&block).map_err(|e| BlockchainError::InvalidBlock(e))?;
-        } else {
+        if self.chain.len() != 0 {
             validate_block(&block, self.last_block()).map_err(|e| BlockchainError::InvalidBlock(e))?;
         }
         
@@ -67,7 +66,7 @@ impl Blockchain {
     pub fn last_block(&self) -> &Block {
         match self.chain.last() {
             Some(last) => last,
-            None => panic!("AAA")
+            None => panic!("Last block not found")
         }
     }
 }

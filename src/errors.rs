@@ -8,6 +8,14 @@ pub enum NodeError {
     TransactionMissing
 }
 
+impl std::fmt::Display for NodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NodeError is here!")
+    }
+}
+
+impl std::error::Error for NodeError {}
+
 #[derive(Debug)]
 pub enum BlockchainError {
     InvalidGenesis(BlockError),
