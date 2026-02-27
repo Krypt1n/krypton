@@ -1,6 +1,6 @@
 use blake3::{Hasher, OUT_LEN};
 use chrono::Utc;
-use crate::{consensus::pow::hash_meets_difficulty, errors::BlockError, transaction::Transaction::*};
+use crate::{consensus::pow::hash_meets_difficulty, errors::BlockError, transaction::transaction::*};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {

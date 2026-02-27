@@ -11,6 +11,7 @@ pub struct Blockchain {
 
 impl Blockchain {
     pub fn new() -> Self {
+        // Добавить первые reward транзакции на адрес первого майнера
         let genesis = Block::genesis();
         Self {
             chain: vec![genesis],

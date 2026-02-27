@@ -1,9 +1,11 @@
+use serde::Deserialize;
+
 use crate::address::Address;
-use crate::transaction::Transaction::{Transaction, TransactionKind};
+use crate::transaction::transaction::{Transaction, TransactionKind};
 
 pub const REWARD: u64 = 50;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct RewardTransaction {
     pub to: Address,
     pub amount: u64

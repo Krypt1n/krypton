@@ -1,6 +1,8 @@
+use serde::Deserialize;
+
 use crate::address::Address;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct UserTransaction {
     pub from: Address,
     pub to: Address,

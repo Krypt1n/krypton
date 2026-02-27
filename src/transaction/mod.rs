@@ -1,3 +1,3 @@
-pub mod Transaction;
+pub mod transaction;
 pub mod reward;
 pub mod user;
