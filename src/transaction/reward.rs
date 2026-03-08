@@ -1,11 +1,12 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::address::Address;
 use crate::transaction::transaction::{Transaction, TransactionKind};
 
 pub const REWARD: u64 = 50;
+pub const EMISSION: u64 = 100000;
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct RewardTransaction {
     pub to: Address,
     pub amount: u64
@@ -30,6 +31,15 @@ pub fn reward_tx(miner: &Address) -> Transaction {
     Transaction::new(
          TransactionKind::Reward(
             RewardTransaction { to: miner.clone(), amount: REWARD },
+         ),
+         None
+    )
+}
+
+pub fn emission_tx(miner: &Address) -> Transaction {
+    Transaction::new(
+         TransactionKind::Reward(
+            RewardTransaction { to: miner.clone(), amount: EMISSION },
          ),
          None
     )

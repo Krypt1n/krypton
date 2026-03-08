@@ -1,14 +1,18 @@
 use ed25519_dalek::{VerifyingKey, SigningKey};
 use blake3::hash;
 use rand::rngs::OsRng;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use base64::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, Hash, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq, Deserialize, Serialize)]
 pub struct Address(pub [u8; 20]);
 
 impl Address {
+    pub fn from_bytes(addr: [u8; 20]) -> Self {
+        Self(addr)
+    }
+
     pub fn from_public_key(pk: &VerifyingKey) -> Self {
         let address: [u8; 20] = hash(pk.as_bytes()).as_bytes()[0..20].try_into().unwrap();
 

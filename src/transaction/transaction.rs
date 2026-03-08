@@ -2,7 +2,7 @@ use blake3::{Hasher, OUT_LEN, hash, Hash};
 use ed25519_dalek::{
     PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH, Signature, SigningKey, VerifyingKey, ed25519::{Error, signature::SignerMut}
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::{
     address::Address,
     errors::TransactionError
@@ -12,7 +12,7 @@ use crate::transaction::reward::*;
 use crate::transaction::user::*;
 
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Transaction {
     pub kind: TransactionKind,
     pub public_key: Option<[u8; 32]>,
@@ -120,7 +120,7 @@ fn validate_public_key(pk: &Result<VerifyingKey, Error>) -> Result<VerifyingKey,
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum TransactionKind {
     User(UserTransaction),
     Reward(RewardTransaction)

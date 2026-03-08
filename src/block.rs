@@ -1,8 +1,9 @@
 use blake3::{Hasher, OUT_LEN};
 use chrono::Utc;
-use crate::{consensus::pow::hash_meets_difficulty, errors::BlockError, transaction::transaction::*};
+use serde::{Deserialize, Serialize};
+use crate::{address::Address, consensus::pow::hash_meets_difficulty, errors::BlockError, transaction::{reward::{emission_tx, reward_tx}, transaction::*}};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Block {
     pub payload: BlockHeader,
     pub transactions: Vec<Transaction>
@@ -19,7 +20,11 @@ impl Block {
     // Переписать после теста
     pub fn genesis() -> Self {
         let payload = BlockHeader::genesis();
-        let transactions =  vec![];
+
+        let owner_addr = Address::from_bytes([160, 73, 104, 127, 18, 167, 255, 29, 64, 35, 153, 105, 99, 189, 221, 135, 34, 48, 113, 116]);
+        let e_tx = emission_tx(&owner_addr);
+
+        let transactions =  vec![e_tx];
 
         Self {
             payload, transactions
@@ -47,7 +52,7 @@ impl Block {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BlockHeader {
     pub height: u64,
     pub timestamp: i64,

@@ -10,9 +10,10 @@ pub struct Blockchain {
 }
 
 impl Blockchain {
-    pub fn new() -> Self {
+    pub fn new(state: &mut State) -> Self {
         // Добавить первые reward транзакции на адрес первого майнера
         let genesis = Block::genesis();
+        state.apply_block(&genesis).unwrap();
         Self {
             chain: vec![genesis],
             current_difficulty: 1
@@ -22,7 +23,7 @@ impl Blockchain {
     pub fn append(&mut self, block: Block, state: &mut State) -> Result<(), BlockchainError> {
         // Проводим валидацию блока, проверяя, не является ли он genesis
         if self.chain.len() != 0 {
-            validate_block(&block, self.last_block()).map_err(|e| BlockchainError::InvalidBlock(e))?;
+            validate_block(&block, &self.last_block()).map_err(|e| BlockchainError::InvalidBlock(e))?;
         }
         
         // Заносим данные блока в State
@@ -64,9 +65,9 @@ impl Blockchain {
         }
     }
 
-    pub fn last_block(&self) -> &Block {
+    pub fn last_block(&self) -> Block {
         match self.chain.last() {
-            Some(last) => last,
+            Some(last) => last.clone(),
             None => panic!("Last block not found")
         }
     }
