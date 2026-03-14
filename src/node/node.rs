@@ -31,7 +31,8 @@
 /// демонстрации, сделать ручной ввод адреса узла, у которого новый узел будет брать файлы.
 /// 
 /// 3. Как публиковать state, чтобы вебсайт мог узнать баланс конкретного адреса?
-/// 
+/// State также будет представлять собой канал, куда каждый узел, публикующий в канал blockchain
+/// блок, будет также публиковать измененный state, который будет обновлен на каждом узле.
 /// 
 /// Мысль: в блокчейнах с алгоритмом PoS вся логика работает совершенно иначе дабы обеспечить
 /// миллионы TPS.
@@ -97,18 +98,18 @@ impl Node {
 
         let subscribe_key = match env::var("PN_SUB_KEY") {
             Ok(val) => val,
-            Err(e) => panic!("Error in get env variable: {e}"),
+            Err(e) => panic!("Ошибка в получении PN_SUB_KEY: {e}"),
         };
 
         let publish_key = match env::var("PN_PUB_KEY") {
             Ok(val) => val,
-            Err(e) => panic!("Error in get env variable: {e}"),
+            Err(e) => panic!("Ошибка в получении PN_PUB_KEY: {e}"),
         };
 
         let keypair = get_user_keypair();
         let address = Address::from_public_key(&keypair.1);
 
-        println!("Address: {}", address.to_string());
+        println!("Адрес узла: {}", address.to_string());
 
         let pubnub = PubNubClientBuilder::with_reqwest_transport()
             .with_keyset(Keyset {
@@ -135,14 +136,18 @@ impl Node {
         })
     }
 
-    fn stop(&mut self) -> Result<(), NodeError> {
+    fn stop(&mut self) {
         let txs = match self.selected_txs.take() {
             Some(txs) => txs,
-            None => return Err(NodeError::TransactionMissing),
+            None => {
+                eprintln!("TxPool пуст, нет транзакций для коммита");
+                vec![]
+            },
         };
         self.txpool.lock().unwrap().commit_txs(txs);
         self.current_block = None;
-        Ok(())
+        self.nodestate = NodeState::Idle;
+        *self.receive_block_flag.lock().unwrap() = false;
     }
 
     fn preparing_block(&mut self) {
@@ -188,7 +193,7 @@ impl Node {
         Ok(())
     }
 
-    fn applying_block(&mut self) -> Result<(), NodeError> {
+    async fn applying_block(&mut self) -> Result<(), NodeError> {
         let txs = match self.selected_txs.take() {
             Some(txs) => txs,
             None => return Err(NodeError::TransactionMissing),
@@ -202,10 +207,19 @@ impl Node {
             }
         };
 
-        match self.blockchain.append(block, &mut self.state) {
-            Ok(_) => Ok(self.txpool.lock().unwrap().commit_txs(txs)),
+        match self.blockchain.append(block.clone(), &mut self.state) {
+            Ok(_) => {
+                self.txpool.lock().unwrap().commit_txs(txs);
+                println!("Локальный блок добавлен в цепочку!");
+            },
             Err(e) => return Err(NodeError::InvalidBlockchain(e)),
-        }
+        };
+
+        // Недоработанная версия отправки блока
+        let result = self.pubnub.publish_message(block).channel("blockchain").execute().await.expect("Ошибка при отправке блока");
+        println!("Блок успешно отправлен: {}", result.timetoken);
+
+        Ok(())
     }
 
     pub async fn run(&mut self) {
@@ -215,7 +229,7 @@ impl Node {
 
         ctrlc::set_handler(move || {
             r.store(false, Ordering::SeqCst);
-        }).expect("Error setting Ctrl-C handler");
+        }).expect("Ошибка в формировании ctrl-c handler");
 
         // Subsription and subscribe
         let subscription = self.pubnub.subscription(SubscriptionParams {
@@ -229,7 +243,7 @@ impl Node {
         tokio::spawn(
             self.pubnub
                 .status_stream()
-                .for_each(|status| async move { println!("\n Status: {status:?}") }),
+                .for_each(|status| async move { println!("\n Статус: {status:?}") }),
         );
 
         // Клонируем данные для использования в новом потоке tokio
@@ -251,10 +265,12 @@ impl Node {
                             if let Ok(utf8_message) = String::from_utf8(message.data.clone()) {
                                 if let Ok(tx) = serde_json::from_str::<Transaction>(&utf8_message) {
                                     println!("Пришла транзакция. Добавляю в txpool...");
-                                    txpool_for_async.lock().unwrap().add_tx(tx).expect("Не удалось добавить транзакцию");
-                                    println!("Транзакция была успешно добавлена");
+                                    match txpool_for_async.lock().unwrap().add_tx(tx) {
+                                        Ok(_) => println!("Полученная из сети транзакция была успешно добавлена!"),
+                                        Err(e) => eprintln!("Не удалось добавить полученную из сети транзакцию")
+                                    };
                                 } else if let Ok(block) = serde_json::from_str::<Block>(&utf8_message) {
-                                    println!("BLock!");
+                                    println!("Получен из сети блок. Ставлю флаг и добавляю в цепочку...");
                                     *receive_block_flag_for_async.lock().unwrap() = true;
                                 }
                             }
@@ -278,15 +294,7 @@ impl Node {
 
         while running.load(Ordering::SeqCst) {
             if *self.receive_block_flag.lock().unwrap() {
-                match self.stop() {
-                    Ok(_) => {
-                        eprintln!("STOP");
-                    }
-                    Err(e) => {
-                        eprintln!("Error in stop: {e:?}");
-                    }
-                };
-                self.nodestate = NodeState::Idle;
+                self.stop();
                 continue;
             }
 
@@ -294,7 +302,7 @@ impl Node {
                 NodeState::Idle => {
                     println!("NodeState - Idle");
                     if self.txpool.lock().unwrap().len() >= self.config.max_txs_per_block {
-                        println!("TxPool >= max_txs_per_block");
+                        println!("В TxPool достаточное кол-во транзакцию. Запуская цикл...");
                         self.nodestate = NodeState::PreparingBlock;
                         continue;
                     }
@@ -318,14 +326,14 @@ impl Node {
                 }
                 NodeState::ApplyingBlock => {
                     println!("NodeState - ApplyingBlock");
-                    match self.applying_block() {
+                    match self.applying_block().await {
                         Ok(_) => {
-                            println!("Success applying block!");
+                            println!("Успешное довабление в цепочку локального блока!");
                             self.nodestate = NodeState::Idle;
                             println!("{:?}", self.state);
                         }
                         Err(e) => {
-                            eprintln!("{e:?}");
+                            eprintln!("Ошибка в доабвлении локального блока в цепочку: {e:?}");
                             self.nodestate = NodeState::Idle;
                             continue;
                         }
