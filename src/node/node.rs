@@ -281,6 +281,8 @@ impl Node {
                                 } else if let Ok(block) = serde_json::from_str::<Block>(&utf8_message) {
                                     println!("Получен из сети блок. Ставлю флаг и добавляю в цепочку...");
                                     *block_from_network_for_async.lock().unwrap() = Some(block);
+                                } else {
+                                    println!("From: {utf8_message}");
                                 }
                             }
                         }
