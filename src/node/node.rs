@@ -142,6 +142,7 @@ impl Node {
             Ok(_) => println!("Блок, полученный из сети, был успешно добавлен!"),
             Err(e) => {
                 eprintln!("Ошибка добавления блока, полученного из сети: {e:?}");
+                *self.block_from_network.lock().unwrap() = None;
                 return;
             }
         };
@@ -338,7 +339,7 @@ impl Node {
                         Ok(_) => {
                             println!("Успешное довабление в цепочку локального блока!");
                             self.nodestate = NodeState::Idle;
-                            println!("{:?}", self.state);
+                            println!("{:?}", self);
                         }
                         Err(e) => {
                             eprintln!("Ошибка в доабвлении локального блока в цепочку: {e:?}");
