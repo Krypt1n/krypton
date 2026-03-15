@@ -282,7 +282,7 @@ impl Node {
                                     println!("Получен из сети блок. Ставлю флаг и добавляю в цепочку...");
                                     *block_from_network_for_async.lock().unwrap() = Some(block);
                                 } else {
-                                    println!("From: {utf8_message}");
+                                    dbg!(message.channel);
                                 }
                             }
                         }
