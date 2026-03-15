@@ -84,7 +84,7 @@ pub struct Node {
     current_block: Option<Block>,
     selected_txs: Option<Vec<Transaction>>,
     config: NodeConfig,
-    receive_block_flag: Arc<Mutex<bool>>,
+    block_from_network: Arc<Mutex<Option<Block>>>
 }
 
 impl Node {
@@ -132,11 +132,20 @@ impl Node {
             current_block: None,
             selected_txs: None,
             config,
-            receive_block_flag: Arc::new(Mutex::new(false)),
+            block_from_network: Arc::new(Mutex::new(None))
         })
     }
 
     fn stop(&mut self) {
+
+        match self.blockchain.append((self.block_from_network.lock().unwrap()).clone().unwrap(), &mut self.state) {
+            Ok(_) => println!("Блок, полученный из сети, был успешно добавлен!"),
+            Err(e) => {
+                eprintln!("Ошибка добавления блока, полученного из сети: {e:?}");
+                return;
+            }
+        };
+
         let txs = match self.selected_txs.take() {
             Some(txs) => txs,
             None => {
@@ -147,7 +156,6 @@ impl Node {
         self.txpool.lock().unwrap().commit_txs(txs);
         self.current_block = None;
         self.nodestate = NodeState::Idle;
-        *self.receive_block_flag.lock().unwrap() = false;
     }
 
     fn preparing_block(&mut self) {
@@ -249,13 +257,13 @@ impl Node {
         // Клонируем данные для использования в новом потоке tokio
         let address_for_thread = Arc::clone(&self.address);
         let txpool_for_thread = Arc::clone(&self.txpool);
-        let receive_block_flag_for_thread = Arc::clone(&self.receive_block_flag);
+        let block_from_network_for_thread = Arc::clone(&self.block_from_network);
 
         tokio::spawn(subscription.stream().for_each(move |event| {
             // Клонируем данные снова для использования в асинхронном блоке
             let address_for_async = Arc::clone(&address_for_thread);
             let txpool_for_async = Arc::clone(&txpool_for_thread);
-            let receive_block_flag_for_async = Arc::clone(&receive_block_flag_for_thread);
+            let block_from_network_for_async = Arc::clone(&block_from_network_for_thread);
 
             async move {
                 match event {
@@ -271,7 +279,7 @@ impl Node {
                                     };
                                 } else if let Ok(block) = serde_json::from_str::<Block>(&utf8_message) {
                                     println!("Получен из сети блок. Ставлю флаг и добавляю в цепочку...");
-                                    *receive_block_flag_for_async.lock().unwrap() = true;
+                                    *block_from_network_for_async.lock().unwrap() = Some(block);
                                 }
                             }
                         }
@@ -293,7 +301,7 @@ impl Node {
         }));
 
         while running.load(Ordering::SeqCst) {
-            if *self.receive_block_flag.lock().unwrap() {
+            if (*self.block_from_network.lock().unwrap()).is_some() {
                 self.stop();
                 continue;
             }
