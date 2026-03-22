@@ -137,15 +137,20 @@ impl Node {
     }
 
     fn stop(&mut self) {
-
+        let mut error_flag = false;
         match self.blockchain.append((self.block_from_network.lock().unwrap()).clone().unwrap(), &mut self.state) {
             Ok(_) => println!("Блок, полученный из сети, был успешно добавлен!"),
             Err(e) => {
                 eprintln!("Ошибка добавления блока, полученного из сети: {e:?}");
                 *self.block_from_network.lock().unwrap() = None;
-                return;
+                println!("set error flag");
+                error_flag = true;
             }
         };
+
+        if error_flag {
+            return;
+        }
 
         let txs = match self.selected_txs.take() {
             Some(txs) => txs,
@@ -306,6 +311,7 @@ impl Node {
         while running.load(Ordering::SeqCst) {
             if (*self.block_from_network.lock().unwrap()).is_some() {
                 self.stop();
+                println!("Continue?");
                 continue;
             }
 
